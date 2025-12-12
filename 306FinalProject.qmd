@@ -1,0 +1,60 @@
+
+```{r}
+library(NHANES)
+names(NHANES)
+```
+
+
+```{r}
+library(dplyr)
+
+# choose relevant predictor variables 
+nhanes <- NHANES |> 
+  select(Age, Gender, Pulse, BPSysAve, BPDiaAve, BMI, TotChol, SleepHrsNight, PhysActiveDays, Smoke100n)
+
+# adults
+nhanes <- nhanes |> 
+  filter(Age >= 18)
+
+# drop missing
+nhanes <- nhanes |> 
+  filter(!is.na(Age), !is.na(Gender), !is.na(Pulse), !is.na(BPSysAve), !is.na(BMI), !is.na(TotChol), !is.na(SleepHrsNight),
+         !is.na(PhysActiveDays), !is.na(Smoke100n))
+
+# gender and smoke (categorical variables) need to be a factor
+nhanes <- nhanes |> mutate(Gender = factor(Gender))
+nhanes <- nhanes |> mutate(Smoke100n = factor(Smoke100n))
+
+
+# z-score predictors for comparability
+# z-score tells you how many standard deviations a specific data point is from the mean (average) of a dataset
+nhanes <- nhanes |>
+  mutate(
+    Pulse_z = scale(Pulse)[, 1],
+    BPSys_z = scale(BPSysAve)[, 1],
+    BPDia_z = scale(BPDiaAve)[, 1],
+    BMI_z = scale(BMI)[, 1],
+    TotChol_z = scale(TotChol)[, 1],
+    SleepHrsNight_z = scale(SleepHrsNight)[, 1],
+    PhysActiveDays_z = scale(PhysActiveDays)[, 1]
+  )
+
+# linear regression!
+model <- lm(Age ~ Pulse_z + BPSys_z + BPDia_z + BMI_z + TotChol_z + SleepHrsNight_z + PhysActiveDays_z + Smoke100n + Gender,
+  data = nhanes
+)
+
+summary(model)
+
+# age prediction based on the model 
+nhanes$BioAge <- predict(model, nhanes)
+
+# delta (biological minus actual)
+nhanes$DeltaAge <- nhanes$BioAge - nhanes$Age
+
+```
+
+```{r}
+# save cleaned data/lm to file for Shiny
+save(nhanes, model, file = "bio_age_objects.RData")
+```
